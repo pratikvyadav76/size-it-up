@@ -19,14 +19,14 @@ async function claim(id) {
   const token = Math.random().toString(36).slice(2) + Date.now();
   try { await api('/api/claim', { team: id, token }); me = { team: id, token }; save(); drawnKey = ''; render(); } catch (e) { alert(e.message); }
 }
-function tick() { if (S) tickTimer(S.secs, S.phase === 'game' && S.stage === 'guess'); }
+function tick() { if (S) tickTimer(S.secs, !!me && S.phase === 'game' && S.stage === 'guess'); }
 
 function render() {
   const main = $('#main');
   if (me && !S.teams.find(t => t.id === me.team && t.claimed)) { me = null; save(); }  // host reset / released
   const team = me && S.teams.find(t => t.id === me.team);
   if (!team) { return draw('pick' + S.phase + S.teams.map(t => t.claimed).join(), () => {
-    $('#head').textContent = '';
+    $('#head').textContent = S.phase === 'game' || S.phase === 'final' ? 'A game is already in progress' : '';
     main.innerHTML = S.phase === 'setup' ? '<div class="card sub">Waiting for the host to create teams…</div>'
       : '<div class="card"><h3>Pick your team (one laptop per team)</h3><div class="grid">' +
         S.teams.map(t => `<button ${t.claimed ? 'disabled' : ''} onclick="claim('${t.id}')">${t.name} ${t.claimed ? '(taken)' : ''}</button>`).join('') + '</div></div>';

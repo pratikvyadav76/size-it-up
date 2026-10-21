@@ -17,6 +17,11 @@ async function poll() {
 }
 function tick() { if (S) tickTimer(S.secs, S.phase === 'game' && S.stage === 'guess'); }
 function reset() { if (confirm('Wipe teams and scores?')) H('/api/host/reset'); }
+function startGame() {
+  const miss = S.teams.filter(t => !t.claimed).map(t => t.name);
+  if (miss.length && !confirm(miss.join(', ') + ' not joined yet and will score 0 until they join. Start anyway?')) return;
+  H('/api/host/start');
+}
 function setup() { H('/api/host/setup', { names: $('#names').value, teams: $('#n').value }).then(() => (drawn = '')); }
 
 function tiles() {
@@ -35,7 +40,7 @@ function render() {
   }
   if (S.phase === 'lobby') {
     $('#head').textContent = `${S.teams.length} teams · ${S.R} rounds of Size + ${S.R} rounds of Price (each 30 s)`;
-    m.innerHTML = tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="H(\'/api/host/start\')">Start game</button></div>'; drawn = 'lobby'; return;
+    m.innerHTML = tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="startGame()">Start game</button></div>'; drawn = 'lobby'; return;
   }
   if (S.phase === 'final') { $('#head').textContent = 'Game over'; m.innerHTML = '<div class="card"><h2 style="text-align:center">Final standings</h2>' + board(S.teams) + '</div>'; drawn = 'final'; return; }
   $('#head').textContent = `${S.game === 'size' ? 'Guess the size' : 'Guess the price'} · Round ${S.round % S.R + 1} / ${S.R} · Game ${S.game === 'size' ? 1 : 2} of 2`;

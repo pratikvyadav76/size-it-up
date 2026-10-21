@@ -30,7 +30,7 @@ function checkAllLocked() {
 }
 setInterval(() => { if (S.phase === 'game' && S.stage === 'guess' && Date.now() >= S.endsAt) reveal(); }, 300);
 
-function view(teamId, host) {
+function view(teamId, host, token) {
   const reveal = S.stage === 'reveal', showScores = S.phase === 'final' || (S.phase === 'game' && reveal);
   const v = { phase: S.phase, R: S.R, round: S.round, total: S.R * 2, stage: S.stage, rate: RATE, ms: Math.max(0, S.endsAt - Date.now()), secs: SECS,
     teams: S.teams.map(t => ({ id: t.id, name: t.name, size: t.size, members: host ? t.members : undefined, claimed: !!t.token, locked: t.locked,
@@ -42,6 +42,8 @@ function view(teamId, host) {
     const me = S.teams.find(t => t.id === teamId);
     if (me) { v.myGuess = me.guess; v.myLocked = me.locked; }
   }
+  const mine = S.teams.find(t => t.id === teamId);
+  if (mine && token) v.mine = mine.token === token;
   return v;
 }
 
@@ -88,7 +90,7 @@ function post(url, b) {
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x'), send = (c, o) => { res.writeHead(c, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(o)); };
-  if (req.method === 'GET' && u.pathname === '/api/state') return send(200, view(u.searchParams.get('team'), u.searchParams.get('key') === KEY));
+  if (req.method === 'GET' && u.pathname === '/api/state') return send(200, view(u.searchParams.get('team'), u.searchParams.get('key') === KEY, u.searchParams.get('token')));
   if (req.method === 'POST') {
     let d = ''; req.on('data', c => (d += c)); req.on('end', () => { try { const [c, o] = post(u.pathname, JSON.parse(d || '{}')); send(c, o); } catch (e) { send(400, { error: String(e) }); } });
     return;

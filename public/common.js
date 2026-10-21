@@ -18,11 +18,16 @@ function tickTimer(total, active) {
 setInterval(() => window.tick && tick(), 200);
 // items: [{e, m, cls, label, x}] drawn at pxPerM; huge sizes use transform so they clip instead of breaking.
 function scene(el, items, pxPerM) {
-  el.querySelectorAll('.obj,.lbl').forEach(n => n.remove());
+  el.querySelectorAll('.obj,.lbl,.refline,.reftag').forEach(n => n.remove());
+  const r = items[0], rh = r.m * pxPerM;  // dashed line at the reference's top so the gap to the target is easy to judge
+  if (rh < 340) {
+    const l = document.createElement('div'); l.className = 'refline'; l.style.bottom = 40 + rh + 'px'; el.appendChild(l);
+    const t = document.createElement('div'); t.className = 'reftag'; t.style.bottom = 44 + rh + 'px'; t.textContent = fmtM(r.m); el.appendChild(t);
+  }
   items.forEach(it => {
     const o = document.createElement('div'); o.className = 'obj'; o.textContent = it.e;
     o.style.left = it.x + '%'; o.style.transform = `scale(${(it.m * pxPerM) / 100})`;
-    o.style.textShadow = `0 0 0 ${it.color}`; el.appendChild(o);
+    const s = (it.m * pxPerM) / 100; o.style.textShadow = `0 0 0 ${it.color}, 0 0 ${(10 / s).toFixed(2)}px ${it.color}`; el.appendChild(o);
     const l = document.createElement('div'); l.className = 'lbl'; l.style.left = it.x + '%'; l.style.color = it.color; l.textContent = it.label; el.appendChild(l);
   });
 }

@@ -12,18 +12,18 @@ let S = null, drawnKey = '', zoom = 1, slider = 500, priceInr = '', cur = 'inr';
 const save = () => { try { localStorage.sizeit = JSON.stringify(me); } catch {} };
 
 async function poll() {
-  try { S = await api('/api/state' + (me ? '?team=' + me.team : '')); setTimer(S.ms); render(); } catch (e) { $('#head').textContent = 'Reconnecting…'; }
+  try { S = await api('/api/state' + (me ? `?team=${me.team}&token=${me.token}` : '')); setTimer(S.ms); render(); } catch (e) { $('#head').textContent = 'Reconnecting…'; }
   setTimeout(poll, 700);
 }
 async function claim(id) {
   const token = Math.random().toString(36).slice(2) + Date.now();
-  try { await api('/api/claim', { team: id, token }); me = { team: id, token }; save(); drawnKey = ''; render(); } catch (e) { alert(e.message); }
+  try { await api('/api/claim', { team: id, token }); me = { team: id, token }; save(); S = await api(`/api/state?team=${id}&token=${token}`); drawnKey = ''; render(); } catch (e) { alert(e.message); }
 }
 function tick() { if (S) tickTimer(S.secs, !!me && S.phase === 'game' && S.stage === 'guess'); }
 
 function render() {
   const main = $('#main');
-  if (me && !S.teams.find(t => t.id === me.team && t.claimed)) { me = null; save(); }  // host reset / released
+  if (me && S.mine === false) { me = null; save(); }  // host reset / released / taken by another laptop
   const team = me && S.teams.find(t => t.id === me.team);
   if (!team) { return draw('pick' + S.phase + S.teams.map(t => t.claimed).join(), () => {
     $('#head').textContent = S.phase === 'game' || S.phase === 'final' ? 'A game is already in progress' : '';

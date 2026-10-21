@@ -1,0 +1,108 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Size It Up</title><link rel="stylesheet" href="/style.css"></head>
+<body><div class="wrap">
+<h1>Size It Up</h1>
+<div class="sub" id="head"></div>
+<div class="bar" style="margin:10px 0"><div id="tbar" style="width:0"></div></div><div class="sub" id="tleft"></div>
+<div id="main"></div>
+</div>
+<script src="/common.js"></script>
+<script>
+let me = null; try { me = JSON.parse(localStorage.sizeit || 'null'); } catch {}
+let S = null, drawnKey = '', zoom = 1, slider = 500, priceInr = '', cur = 'inr';
+const save = () => { try { localStorage.sizeit = JSON.stringify(me); } catch {} };
+
+async function poll() {
+  try { S = await api('/api/state' + (me ? '?team=' + me.team : '')); setTimer(S.ms); render(); } catch (e) { $('#head').textContent = 'Reconnecting…'; }
+  setTimeout(poll, 700);
+}
+async function claim(id) {
+  const token = Math.random().toString(36).slice(2) + Date.now();
+  try { await api('/api/claim', { team: id, token }); me = { team: id, token }; save(); drawnKey = ''; render(); } catch (e) { alert(e.message); }
+}
+function tick() { if (S) tickTimer(S.secs, S.phase === 'game' && S.stage === 'guess'); }
+
+function render() {
+  const main = $('#main');
+  if (me && !S.teams.find(t => t.id === me.team && t.claimed)) { me = null; save(); }  // host reset / released
+  const team = me && S.teams.find(t => t.id === me.team);
+  if (!team) { return draw('pick' + S.phase + S.teams.map(t => t.claimed).join(), () => {
+    $('#head').textContent = '';
+    main.innerHTML = S.phase === 'setup' ? '<div class="card sub">Waiting for the host to create teams…</div>'
+      : '<div class="card"><h3>Pick your team (one laptop per team)</h3><div class="grid">' +
+        S.teams.map(t => `<button ${t.claimed ? 'disabled' : ''} onclick="claim('${t.id}')">${t.name} ${t.claimed ? '(taken)' : ''}</button>`).join('') + '</div></div>';
+  }); }
+  const label = `${team.name}`;
+  if (S.phase === 'lobby') return draw('lobby' + team.id, () => { $('#head').textContent = label; main.innerHTML = '<div class="card sub">You\'re in! Waiting for the host to start…</div>'; });
+  if (S.phase === 'final') return draw('final', () => { $('#head').textContent = label; main.innerHTML = '<div class="card"><h2 style="text-align:center">Final standings</h2>' + board(S.teams, me.team) + '</div>'; });
+  $('#head').textContent = `${label} · ${S.game === 'size' ? 'Guess the size' : 'Guess the price'} · Round ${S.round % S.R + 1} / ${S.R}`;
+  const key = 'g' + S.round + S.stage;
+  if (S.stage === 'reveal') return draw(key, () => reveal(team));
+  draw(key, () => (S.game === 'size' ? sizeView() : priceView()));
+  updateLock();
+}
+function draw(key, fn) { if (key !== drawnKey) { drawnKey = key; fn(); } }
+
+// ---- size round ----
+const mOf = v => S.q.ref.m * Math.pow(200, (v / 1000) * 2 - 1);
+function pxPer() { return ((380 * 0.3) / S.q.ref.m) * zoom; }
+function sizeView() {
+  slider = 500; zoom = 1;
+  $('#main').innerHTML = `<div class="sub">Match the silhouette to its real-world scale.</div>
+  <div class="scene" id="sc"><div class="ground"></div><div class="zoom"><button class="ghost" onclick="zoom*=2;drawSize()">＋</button><button class="ghost" onclick="zoom/=2;drawSize()">－</button></div></div>
+  <div class="card"><div><span class="blue"><b>Reference:</b> ${S.q.ref.name} — ${fmtM(S.q.ref.m)}</span><br><span class="red"><b>Target:</b> ${S.q.t.name} — drag to set its size</span></div>
+  <input type="range" id="sl" min="0" max="1000" value="500" style="margin:12px 0;padding:0" oninput="slider=+this.value;drawSize();send()">
+  <div style="display:flex;justify-content:space-between;align-items:center"><b id="rd" style="font-size:22px"></b><button id="lock" onclick="lock()">Lock In</button></div></div>`;
+  drawSize();
+}
+function drawSize() {
+  scene($('#sc'), [{ e: S.q.ref.e, m: S.q.ref.m, color: '#4a9eff', x: 12, label: S.q.ref.name.split(' (')[0] },
+    { e: S.q.t.e, m: mOf(slider), color: '#f24d4d', x: 45, label: 'Your guess' }], pxPer());
+  $('#rd').textContent = 'Your guess: ' + fmtM(mOf(slider));
+}
+// ---- price round ----
+function priceView() {
+  priceInr = ''; cur = S.q.usd ? 'usd' : 'inr';
+  $('#main').innerHTML = `<div class="card" style="text-align:center"><div style="font-size:90px">${S.q.e}</div><h2>${S.q.name}</h2><div class="sub">${S.q.note}</div>
+  <div style="display:flex;gap:8px;max-width:420px;margin:16px auto"><button class="ghost" id="cur" onclick="flip()"></button><input id="pi" type="number" min="0" step="any" placeholder="Your price" oninput="priceChanged()"></div>
+  <div class="sub" id="conv"></div><div style="margin-top:14px"><button id="lock" onclick="lock()">Lock In</button></div></div>`;
+  flip(true);
+}
+function flip(keep) { if (!keep) cur = cur === 'inr' ? 'usd' : 'inr'; $('#cur').textContent = cur === 'inr' ? '₹ INR' : '$ USD'; priceChanged(); }
+function priceChanged() {
+  const v = +$('#pi').value, i = cur === 'inr' ? v : v * S.rate; priceInr = v > 0 ? i : '';
+  $('#conv').textContent = v > 0 ? both(i, S.rate) + `  (1 USD = ₹${S.rate})` : `1 USD = ₹${S.rate}`; send();
+}
+// ---- shared ----
+let sending = false;
+async function send() {
+  if (sending) return; sending = true; await new Promise(r => setTimeout(r, 250)); sending = false;
+  const v = S.game === 'size' ? mOf(slider) : priceInr; if (!v) return;
+  try { await api('/api/guess', { ...me, value: v }); } catch {}
+}
+async function lock() {
+  const v = S.game === 'size' ? mOf(slider) : priceInr; if (!v) return alert('Enter a price first');
+  try { await api('/api/guess', { ...me, value: v }); await api('/api/lock', me); } catch (e) { alert(e.message); }
+}
+function updateLock() {
+  const b = $('#lock'); if (!b) return;
+  b.disabled = S.myLocked; b.textContent = S.myLocked ? 'Locked in ✓ — waiting…' : 'Lock In';
+  document.querySelectorAll('#sl,#pi,#cur').forEach(x => (x.disabled = S.myLocked));
+}
+function reveal(team) {
+  const q = S.q, ans = q.answer, g = S.teams.find(t => t.id === me.team).last;
+  let top = '';
+  if (S.game === 'size') {
+    top = `<div class="scene" id="sc"><div class="ground"></div></div><div class="card"><b class="green">Actual: ${fmtM(ans)}</b> — ${q.t.name}${g && g.guess ? ` · <span class="red">Your guess: ${fmtM(g.guess)}</span>` : ' · you did not guess'}</div>`;
+  } else {
+    top = `<div class="card" style="text-align:center"><div style="font-size:70px">${q.e}</div><h2>${q.name}</h2><h2 class="green">${both(ans, S.rate)}</h2>${g && g.guess ? `<div class="red">Your guess: ${both(g.guess, S.rate)}</div>` : 'You did not guess'}</div>`;
+  }
+  $('#main').innerHTML = top + '<div class="card">' + board(S.teams, me.team) + '</div><div class="sub">Waiting for the host to start the next round…</div>';
+  if (S.game === 'size') {
+    const ppm = Math.min((380 * 0.3) / q.ref.m, 290 / Math.max(ans, g && g.guess || 0));
+    scene($('#sc'), [{ e: q.ref.e, m: q.ref.m, color: '#4a9eff', x: 8, label: 'Reference' },
+      ...(g && g.guess ? [{ e: q.t.e, m: g.guess, color: '#f24d4d', x: 38, label: 'You' }] : []),
+      { e: q.t.e, m: ans, color: '#2fbf71', x: 68, label: 'Actual' }], ppm);
+  }
+}
+poll();
+</script></body></html>

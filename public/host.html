@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Size It Up — Host</title><link rel="stylesheet" href="/style.css"></head>
+<body><div class="wrap">
+<h1>Size It Up — Host</h1>
+<div class="sub" id="head"></div>
+<div class="bar" style="margin:10px 0"><div id="tbar" style="width:0"></div></div><div class="big" id="tleft" style="text-align:center"></div>
+<div id="main"></div>
+<div style="text-align:center;margin:20px"><button class="ghost" onclick="reset()">Reset everything</button></div>
+</div>
+<script src="/common.js"></script>
+<script>
+const key = new URLSearchParams(location.search).get('k') || '';
+let S = null, drawn = '';
+const H = (u, b) => api(u, { ...b, key }).catch(e => alert(e.message));
+async function poll() {
+  try { S = await api('/api/state?key=' + key); setTimer(S.ms); render(); } catch { $('#head').textContent = 'Reconnecting…'; }
+  setTimeout(poll, 700);
+}
+function tick() { if (S) tickTimer(S.secs, S.phase === 'game' && S.stage === 'guess'); }
+function reset() { if (confirm('Wipe teams and scores?')) H('/api/host/reset'); }
+function setup() { H('/api/host/setup', { names: $('#names').value, teams: $('#n').value }).then(() => (drawn = '')); }
+
+function tiles() {
+  return '<div class="grid">' + S.teams.map(t => `<div class="tile ${t.locked ? 'ok' : ''}"><h3>${t.name}</h3>
+    <div class="sub">${t.size} players ${t.claimed ? '· laptop joined' : '· <b style="color:#f2b84d">not joined</b>'}</div>
+    ${S.phase === 'game' && S.stage === 'guess' ? `<div style="font-size:20px;margin-top:8px">${t.locked ? '🔒 Locked in' : '✍️ Thinking…'}</div>` : ''}
+    ${S.phase === 'lobby' ? `<div class="sub" style="margin-top:6px">${(t.members || []).join(', ')}</div>${t.claimed ? `<button class="ghost" onclick="H('/api/host/release',{team:'${t.id}'})">Release</button>` : ''}` : ''}</div>`).join('') + '</div>';
+}
+function render() {
+  const m = $('#main');
+  if (!key) { m.innerHTML = '<div class="card">Open the host link printed by the server (it ends with ?k=…)</div>'; return; }
+  if (S.phase === 'setup') {
+    if (drawn !== 'setup') { drawn = 'setup'; $('#head').textContent = ''; m.innerHTML = `<div class="card"><h3>Players (one per line or comma-separated)</h3><textarea id="names" rows="10"></textarea>
+      <h3>Number of teams</h3><input id="n" type="number" min="1" value="5" style="max-width:120px"><p class="sub">Teams are shuffled and split as evenly as possible. Rounds per game = size of the biggest team.</p><button onclick="setup()">Create teams</button></div>`; }
+    return;
+  }
+  if (S.phase === 'lobby') {
+    $('#head').textContent = `${S.teams.length} teams · ${S.R} rounds of Size + ${S.R} rounds of Price (each 30 s)`;
+    m.innerHTML = tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="H(\'/api/host/start\')">Start game</button></div>'; drawn = 'lobby'; return;
+  }
+  if (S.phase === 'final') { $('#head').textContent = 'Game over'; m.innerHTML = '<div class="card"><h2 style="text-align:center">Final standings</h2>' + board(S.teams) + '</div>'; drawn = 'final'; return; }
+  $('#head').textContent = `${S.game === 'size' ? 'Guess the size' : 'Guess the price'} · Round ${S.round % S.R + 1} / ${S.R} · Game ${S.game === 'size' ? 1 : 2} of 2`;
+  const k = S.round + S.stage + S.teams.map(t => t.locked).join();
+  if (k === drawn) return; drawn = k;
+  if (S.stage === 'guess') {
+    const name = S.game === 'size' ? `${S.q.t.e} ${S.q.t.name} vs ${S.q.ref.name}` : `${S.q.e} ${S.q.name}`;
+    m.innerHTML = `<div class="card sub"><b>${name}</b></div>` + tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="H(\'/api/host/done\')">Done — reveal now</button></div>';
+  } else {
+    const a = S.game === 'size' ? fmtM(S.q.answer) : both(S.q.answer, S.rate);
+    m.innerHTML = `<div class="card" style="text-align:center"><b>${S.game === 'size' ? S.q.t.name : S.q.name}</b><h2 class="green">${a}</h2></div><div class="card">${board(S.teams)}</div>
+      <div style="text-align:center"><button onclick="H('/api/host/next')">${S.round + 1 >= S.total ? 'Show final results' : 'Next round'}</button></div>`;
+  }
+}
+poll();
+</script></body></html>

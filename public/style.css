@@ -37,3 +37,4 @@ svg.sil{position:absolute;bottom:40px;transform-origin:bottom left;overflow:visi
 .lbl{transform:translateX(-50%);text-align:center}.refline.v{top:0;bottom:0;left:auto;right:auto;border-top:0;border-left:1px dashed rgba(74,158,255,.55);width:0}.reftag{position:absolute}
 .pcard{display:flex;flex-direction:column;align-items:center;gap:6px;padding:28px 16px;background:radial-gradient(circle at 50% 0,#1d2550,#10131f 70%)}.pcard .emo{font-size:110px;line-height:1;filter:drop-shadow(0 8px 20px rgba(0,0,0,.5))}
 .sil{position:absolute;bottom:40px;transform-origin:bottom left}
+.pimg{max-height:230px;max-width:min(100%,420px);object-fit:contain;border-radius:14px;background:#f2f3f8;padding:10px}.pimg.sm{max-height:130px}

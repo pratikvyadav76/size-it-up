@@ -1,10 +1,10 @@
 const http = require('http'), fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
 const Q = require('./questions.js');
-const PORT = +process.env.PORT || 8000, RATE = 88, DEFAULT_SECS = 30, SAVE = path.join(__dirname, 'state.json');
+const PORT = +process.env.PORT || 8000, RATE = 94.9, DEFAULT_SECS = 30, SAVE = path.join(__dirname, 'state.json');
 const KEY = process.env.HOST_KEY || crypto.randomBytes(3).toString('hex');
 const MAXR = Math.min(Q.size.length, Q.price.length);
 
-const fresh = () => ({ phase: 'setup', teams: [], R: 0, round: 0, stage: 'guess', endsAt: 0, secs: DEFAULT_SECS, roundSecs: DEFAULT_SECS, order: { size: [], price: [] } });
+const fresh = () => ({ mode: 'teams', phase: 'setup', teams: [], R: 0, round: 0, stage: 'guess', endsAt: 0, secs: DEFAULT_SECS, roundSecs: DEFAULT_SECS, order: { size: [], price: [] } });
 let S = (() => { try { return JSON.parse(fs.readFileSync(SAVE)); } catch { return fresh(); } })();
 const save = () => fs.writeFileSync(SAVE, JSON.stringify(S));
 
@@ -32,12 +32,12 @@ setInterval(() => { if (S.phase === 'game' && S.stage === 'guess' && Date.now() 
 
 function view(teamId, host, token) {
   const reveal = S.stage === 'reveal', showScores = S.phase === 'final' || (S.phase === 'game' && reveal);
-  const v = { phase: S.phase, R: S.R, round: S.round, total: S.R * 2, stage: S.stage, rate: RATE, ms: Math.max(0, S.endsAt - Date.now()), secs: S.roundSecs, cfgSecs: S.secs, expect: S.phase === 'game' ? S.round + '-' + S.stage : S.phase, maxR: MAXR,
+  const v = { mode: S.mode, phase: S.phase, R: S.R, round: S.round, total: S.R * 2, stage: S.stage, rate: RATE, ms: Math.max(0, S.endsAt - Date.now()), secs: S.roundSecs, cfgSecs: S.secs, expect: S.phase === 'game' ? S.round + '-' + S.stage : S.phase, maxR: MAXR,
     teams: S.teams.map(t => ({ id: t.id, name: t.name, size: t.size, members: host ? t.members : undefined, claimed: !!t.token, locked: t.locked, online: host ? !!t.seen && Date.now() - t.seen.at < 4000 : undefined, seen: host && t.seen ? t.seen.r : undefined,
       score: showScores ? t.score : undefined, last: showScores && S.phase === 'game' ? t.last : undefined })) };
   if (S.phase === 'game') {
     v.game = game(); const q = question();
-    v.q = reveal ? { ...q, answer: answer(q) } : game() === 'size' ? { ref: q.ref, t: { id: q.t.id, s: q.t.s, name: q.t.name } } : { e: q.e, name: q.name, note: q.note, usd: q.usd !== undefined };
+    v.q = reveal ? { ...q, answer: answer(q) } : game() === 'size' ? { ref: q.ref, t: { id: q.t.id, s: q.t.s, name: q.t.name } } : { e: q.e, name: q.name, note: q.note, img: q.img, usd: q.usd !== undefined };
     if (reveal && v.game === 'price') v.q.usd = q.usd !== undefined;
     const me = S.teams.find(t => t.id === teamId);
     if (me) { v.myGuess = me.guess; v.myLocked = me.locked; }
@@ -53,6 +53,11 @@ function post(url, b) {
   if (url.startsWith('/api/host/') && !host) return [403, { error: 'bad host key' }];
   switch (url) {
     case '/api/host/setup': {
+      if (b.mode === 'individual') {
+        const R = Math.max(1, Math.min(MAXR, Math.round(+b.rounds) || 5));
+        S = { ...fresh(), mode: 'individual', phase: 'lobby', teams: [], R, order: { size: shuffle([...Q.size.keys()]), price: shuffle([...Q.price.keys()]) } };
+        break;
+      }
       const names = String(b.names || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean), n = +b.teams;
       if (!(n >= 1) || names.length < n) return [400, { error: 'Need at least as many names as teams' }];
       const pool = shuffle(names), teams = Array.from({ length: n }, (_, i) => ({ id: 't' + (i + 1), name: 'Team ' + (i + 1), members: [], score: 0, token: null, guess: null, locked: false }));
@@ -84,6 +89,20 @@ function post(url, b) {
       break;
     case '/api/host/release': if (team) team.token = null; break;
     case '/api/host/reset': S = fresh(); break;
+    case '/api/join': {
+      if (S.mode !== 'individual' || !['lobby', 'game'].includes(S.phase)) return [400, { error: 'Joining is closed right now' }];
+      const name = String(b.name || '').trim().replace(/s+/g, ' ');
+      if (!b.token) return [400, { error: 'bad device id' }];
+      const mine = S.teams.find(t => t.token === b.token);
+      if (mine) return [200, { ok: true, team: mine.id }];  // this device is already logged in
+      if (name.length < 3 || name.length > 40 || name.split(' ').length < 2) return [400, { error: 'Enter your name and surname' }];
+      const same = S.teams.find(t => t.name.toLowerCase() === name.toLowerCase());
+      if (same && same.token) return [409, { error: 'That name is already logged in on another PC' }];
+      if (same) { same.token = b.token; save(); return [200, { ok: true, team: same.id }]; }  // host released it: reclaim
+      const id = 'p' + (S.teams.length + 1);
+      S.teams.push({ id, name, members: [name], size: 1, score: 0, token: b.token, guess: null, locked: false });
+      save(); return [200, { ok: true, team: id }];
+    }
     case '/api/claim':
       if (!team) return [400, { error: 'no such team' }];
       if (team.token && team.token !== b.token) return [409, { error: 'Team already taken by another laptop' }];

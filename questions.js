@@ -23,24 +23,27 @@ const PAIRS = [
   'empire burj', 'indiagate qutub', 'lotus brihad', 'rickshaw gateway', 'bus taj', 'elephant unity', 'liberty charminar', 'qutub antilia', 'bus swift', 'human hawa',
 ].map(p => p.split(' '));
 
+let found = {}; try { found = require('./public/img/found.json'); } catch {}
 module.exports = {
   size: PAIRS.map(([r, t]) => ({ ref: obj(r), t: obj(t) })),
   price: [
-    // India
-    ['🥙', 'Vada pav', 'Mumbai street stall', 20], ['🍵', 'Cutting chai', 'Roadside stall', 15], ['🍜', 'Maggi 70 g pack', 'MRP', 14], ['🧈', 'Amul butter 500 g', 'MRP', 305],
-    ['💧', 'Bisleri 1 litre bottle', 'MRP', 20], ['🍪', 'Parle-G small pack', 'MRP', 5], ['🥔', "Lay's Classic small pack", 'MRP', 20], ['🧂', 'Tata Salt 1 kg', 'MRP', 28],
-    ['🚗', 'Maruti Alto K10', 'Base, ex-showroom', 400000], ['🚙', 'Tata Nexon', 'Base, ex-showroom', 730000], ['🚘', 'Hyundai Creta', 'Base, ex-showroom', 1100000], ['🛻', 'Toyota Fortuner', 'Base, ex-showroom', 3400000],
-    ['⚡', 'Tesla Model Y in India', 'Launch price', 5989000], ['🏍️', 'Royal Enfield Classic 350', 'Base, ex-showroom', 190000], ['🏍️', 'Hero Splendor+', 'Ex-showroom', 76000], ['🛵', 'Honda Activa', 'Ex-showroom', 78000],
-    ['🏍️', 'Royal Enfield Himalayan 450', 'Ex-showroom', 285000], ['🚗', 'Tata Nano at launch (2009)', 'Famous "1 lakh car"', 100000], ['🚙', 'Kia Seltos', 'Base, ex-showroom', 1100000], ['🏍️', 'Hero HF Deluxe', 'Ex-showroom', 60000],
-    ['📱', 'iPhone 17 (256 GB) in India', 'Launch price', 82900], ['📱', 'iPhone 17 Pro Max in India', '256 GB launch price', 149900], ['💻', 'MacBook Air M4 in India', '13-inch, base', 99900], ['🎧', 'AirPods Pro 3 in India', 'Launch price', 25900],
-    ['📱', 'Samsung Galaxy S25 Ultra', 'India launch price', 129999], ['📱', 'Google Pixel 10', 'India launch price', 79999],
-    ['🔥', 'LPG cylinder 14.2 kg', 'Delhi, domestic', 853], ['⛽', 'Petrol, 1 litre', 'Delhi', 95], ['🛢️', 'Diesel, 1 litre', 'Delhi', 88],
-    ['🕌', 'Taj Mahal ticket (Indian citizen)', 'Entry + main mausoleum', 250], ['🏰', 'Red Fort entry ticket', 'Indian citizen', 35], ['🗼', 'Qutub Minar entry ticket', 'Indian citizen', 40],
-    ['📘', 'Passport fresh issue', '36 pages, normal', 1500], ['🎬', 'Netflix Basic plan in India', 'Per month', 199], ['🎵', 'Spotify Premium Individual', 'India, per month', 139], ['▶️', 'YouTube Premium Individual', 'India, per month', 149],
-    ['📦', 'Amazon Prime annual plan', 'India', 1499], ['✉️', 'Indian postcard', 'India Post', 0.5], ['🚇', 'Delhi Metro minimum fare', 'Per trip', 10], ['🍫', 'Kurkure small pack', 'MRP', 20],
-    // USA
-    ['🍔', 'Big Mac', 'USA average', null, 6], ['☕', 'Starbucks Grande Latte', 'USA average', null, 5], ['🎧', 'AirPods Pro 3', 'USA price', null, 249], ['🚗', 'Tesla Model 3', 'USA base price', null, 37000],
-    ['📱', 'iPhone 17 (256 GB) in USA', 'Launch price', null, 799], ['🏈', '30-second Super Bowl ad', 'USA', null, 8000000], ['⛽', 'Gallon of gas', 'USA average', null, 3.1], ['🌭', 'Costco hot dog + soda combo', 'USA', null, 1.5],
-    ['✉️', 'US first-class Forever stamp', 'USA', null, 0.78], ['🚇', 'NYC subway ride', 'Per trip', null, 3],
-  ].map(([e, name, note, inr, usd]) => (usd ? { e, name, note, usd } : { e, name, note, inr })),
+    // [emoji fallback, title, note, INR, USD-only price]
+    ['🥇', '10 g of 24K gold', 'in India today', 143000], ['🥈', '1 kg of silver', 'in India', 220000], ['🏙️', 'One acre at Nariman Point, Mumbai', 'based on the RBI land deal', 8270000000],
+    ['🏘️', 'One acre around Altamount Road, Mumbai', 'Mumbai land', 2430000000], ['⌚', 'Rolex Datejust 41', 'in India', 1136000], ['👜', 'Classic Hermès Birkin bag', 'in India', 2000000],
+    ['📱', 'iPhone 17, 256 GB', 'bought in India', 99900], ['💻', 'MacBook Air, base model', 'in India', 99900], ['💇', 'Dyson Airwrap styling tool', 'in India', 49900],
+    ['💇', 'Dyson Airstrait hair straightener', 'in India', 45900], ['🎮', 'PlayStation 5 Slim console', 'in India', 54990], ['📺', 'Sony Bravia 65-inch premium TV', 'in India', 140000],
+    ['🧊', 'Pastel-colour Smeg refrigerator', 'in India', 250000], ['🍰', 'KitchenAid stand mixer', 'in India', 62000], ['🍨', 'Ninja Creami ice-cream maker', 'in India', 24999],
+    ['☕', 'Nespresso coffee machine', 'in India', 18999], ['🏍️', 'Royal Enfield Classic 350', 'starting price', 193000], ['🚙', 'Mahindra Thar Roxx', 'starting price', 1299000],
+    ['⚡', 'Tata Harrier EV', 'starting price', 2149000], ['🚗', 'BMW 3 Series', 'starting price in India', 7590000], ['🛵', 'Honda Activa scooter', 'starting price', 80950],
+    ['🛴', 'Ola S1 Pro electric scooter', 'in India', 140000], ['💎', 'Swarovski crystal necklace', 'in India', 12000], ['🌸', 'Chanel No. 5 perfume, 100 ml', 'in India', 20000],
+    ['💄', 'Dior Lip Glow lip balm', 'in India', 4000], ['🎨', 'Huda Beauty eyeshadow palette', 'in India', 6500], ['👠', 'Christian Louboutin red-sole heels', 'in India', 75000],
+    ['👟', 'Nike Air Jordan 1 sneakers', 'in India', 16995], ['🕶️', 'Ray-Ban Wayfarer sunglasses', 'in India', 10990], ['👖', "Levi's premium jeans", 'in India', 3999],
+    ['🧥', 'Zara blazer', 'in India', 7990], ['🥤', 'Stanley tumbler', 'bought in India', 3500], ['👜', 'Saint Laurent handbag', 'in India', 250000],
+    ['⌚', 'Tissot PRX watch', 'in India', 42000], ['⌚', 'Rado watch', 'entry luxury range', 150000], ['🖋️', 'Montblanc pen', 'just to sign “Approved”', 50000],
+    ['👜', 'Louis Vuitton Neverfull handbag', 'in India', 185000], ['🧱', 'LEGO Taj Mahal set', 'in India', 11999], ['🛥️', 'Private yacht rental in Goa', 'a few hours', 75000],
+    ['✈️', 'Business-class Delhi–London return flight', 'in India', 250000], ['🏨', 'One night in a top Mumbai luxury hotel suite', 'Mumbai', 35000], ['👰', 'Designer bridal lehenga', 'in India', 350000],
+    ['🪑', 'Gaming chair', 'for “serious productivity”', 45000], ['⌚', 'Apple Watch, standard model', 'in India', 49900], ['🎮', 'Newly released PlayStation game', 'in India', 4999],
+    ['📖', 'Kindle Paperwhite', 'in India', 11999], ['💅', 'Full salon-style makeup kit', 'for one wedding event', 75000],
+    ['🛩️', 'One B-2 Spirit stealth bomber', '🌍 Foreign wildcard', null, 2130000000], ['🌆', 'A penthouse apartment in Burj Khalifa', '🌍 Foreign wildcard', null, 823000], ['📱', 'iPhone 17, 256 GB', '🌍 Foreign wildcard — bought in the US', null, 899],
+  ].map(([e, name, note, inr, usd], i) => ({ e, name, note, img: found[i + 1] ? '/img/' + found[i + 1] : undefined, ...(usd ? { usd } : { inr }) })),
 };

@@ -19,12 +19,22 @@ async function claim(id) {
   const token = Math.random().toString(36).slice(2) + Date.now();
   try { await api('/api/claim', { team: id, token }); me = { team: id, token }; save(); S = await api(`/api/state?team=${id}&token=${token}`); drawnKey = ''; render(); } catch (e) { alert(e.message); }
 }
+async function login() {
+  const name = ($('#fn').value.trim() + ' ' + $('#ln').value.trim()).trim(), token = (me && me.token) || (Math.random().toString(36).slice(2) + Date.now());
+  if (!$('#fn').value.trim() || !$('#ln').value.trim()) { $('#lerr').textContent = 'Please enter both first name and surname'; return; }
+  try { const r = await api('/api/join', { name, token }); me = { team: r.team, token }; save(); S = await api(`/api/state?team=${r.team}&token=${token}`); drawnKey = ''; render(); } catch (e) { $('#lerr').textContent = e.message; }
+}
 function tick() { if (S) tickTimer(S.secs, !!me && S.phase === 'game' && S.stage === 'guess'); }
 
 function render() {
   const main = $('#main');
   if (me && S.mine === false) { me = null; save(); }  // host reset / released / taken by another laptop
   const team = me && S.teams.find(t => t.id === me.team);
+  if (!team && S.mode === 'individual') return draw('login' + S.phase, () => {
+    $('#head').textContent = S.phase === 'final' ? 'The game is over' : '';
+    main.innerHTML = S.phase === 'setup' ? '<div class="card sub">Waiting for the host to start a game…</div>' : S.phase === 'final' ? '<div class="card sub">This game has finished.</div>'
+      : '<div class="card" style="max-width:460px;margin:20px auto"><h3 style="margin-top:0">Log in to play</h3><p class="sub" style="text-align:left">One login per PC. Use your real name and surname.</p><input id="fn" placeholder="First name" autocomplete="off" style="margin-bottom:8px"><input id="ln" placeholder="Surname" autocomplete="off"><div id="lerr" style="color:#ff6b6b;min-height:22px;margin:8px 0"></div><button onclick="login()">Join game</button></div>';
+  });
   if (!team) { return draw('pick' + S.phase + S.teams.map(t => t.claimed).join(), () => {
     $('#head').textContent = S.phase === 'game' || S.phase === 'final' ? 'A game is already in progress' : '';
     main.innerHTML = S.phase === 'setup' ? '<div class="card sub">Waiting for the host to create teams…</div>'
@@ -63,14 +73,14 @@ function drawSize() {
 // ---- price round ----
 function priceView() {
   priceInr = ''; cur = S.q.usd ? 'usd' : 'inr';
-  $('#main').innerHTML = `<div class="card pcard"><div class="emo">${S.q.e}</div><h2 style="margin:6px 0 0">${S.q.name}</h2><div class="sub">${S.q.note} · approx.</div>
-  <div style="display:flex;gap:8px;max-width:420px;margin:16px auto"><button class="ghost" id="cur" onclick="flip()"></button><input id="pi" type="number" min="0" step="any" placeholder="Your price" oninput="priceChanged()"></div>
+  $('#main').innerHTML = `<div class="card pcard">${S.q.img ? `<img class="pimg" src="${S.q.img}" alt="" onerror="this.outerHTML='<div class=emo>${S.q.e}</div>'">` : `<div class="emo">${S.q.e}</div>`}<h2 style="margin:6px 0 0">${S.q.name}</h2><div class="sub">${S.q.note} · approx.</div>
+  <div style="display:flex;gap:8px;max-width:420px;margin:16px auto"><button class="ghost" id="cur" onclick="flip()"></button><input id="pi" type="text" inputmode="decimal" autocomplete="off" placeholder="Your price (e.g. 1.4 lakh, 827 cr, 20k)" oninput="priceChanged()"></div>
   <div class="sub" id="conv"></div><div style="margin-top:14px"><button id="lock" onclick="lock()">Lock In</button></div></div>`;
   flip(true);
 }
 function flip(keep) { if (!keep) cur = cur === 'inr' ? 'usd' : 'inr'; $('#cur').textContent = cur === 'inr' ? '₹ INR' : '$ USD'; priceChanged(); }
 function priceChanged() {
-  const v = +$('#pi').value, i = cur === 'inr' ? v : v * S.rate; priceInr = v > 0 ? i : '';
+  const v = parseMoney($('#pi').value), i = cur === 'inr' ? v : v * S.rate; priceInr = v > 0 ? i : '';
   $('#conv').textContent = v > 0 ? both(i, S.rate) + `  (1 USD = ₹${S.rate})` : `1 USD = ₹${S.rate}`; send();
 }
 // ---- shared ----
@@ -95,7 +105,7 @@ function reveal(team) {
   if (S.game === 'size') {
     top = `<div class="scene" id="sc"><div class="ground"></div></div><div class="card"><b class="green">Actual: ${fmtM(ans)}</b> — ${q.t.name}${g && g.guess ? ` · <span class="red">Your guess: ${fmtM(g.guess)}</span>` : ' · you did not guess'}</div>`;
   } else {
-    top = `<div class="card" style="text-align:center"><div style="font-size:70px">${q.e}</div><h2>${q.name}</h2><h2 class="green">${both(ans, S.rate)}</h2>${g && g.guess ? `<div class="red">Your guess: ${both(g.guess, S.rate)}</div>` : 'You did not guess'}</div>`;
+    top = `<div class="card pcard">${q.img ? `<img class="pimg sm" src="${q.img}" alt="" onerror="this.outerHTML='<div class=emo>${q.e}</div>'">` : `<div class="emo">${q.e}</div>`}<h2>${q.name}</h2><h2 class="green">${both(ans, S.rate)}</h2>${g && g.guess ? `<div class="red">Your guess: ${both(g.guess, S.rate)}</div>` : 'You did not guess'}</div>`;
   }
   $('#main').innerHTML = top + '<div class="card">' + board(S.teams, me.team) + '</div><div class="sub">Waiting for the host to start the next round…</div>';
   if (S.game === 'size') {

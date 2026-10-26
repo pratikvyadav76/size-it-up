@@ -36,27 +36,32 @@ function startGame() {
   if (miss.length && !confirm(miss.join(', ') + ' not joined yet and will score 0 until they join. Start anyway?')) return;
   H('/api/host/start');
 }
+function modeChanged() { const ind = document.querySelector('input[name=mode]:checked').value === 'individual'; $('#indiv').style.display = ind ? 'block' : 'none'; $('#teamsetup').style.display = ind ? 'none' : 'block'; }
+function setupIndividual() { H('/api/host/setup', { mode: 'individual', rounds: $('#ir').value }).then(() => (drawn = '')); }
 function setup() { H('/api/host/setup', { names: $('#names').value, teams: $('#n').value }).then(() => (drawn = '')); }
 const act = (label, call, cls = 'ghost', ask = '') => `<button class="${cls}" onclick="${ask ? `if(!confirm('${ask}'))return;` : ''}H('${call.u}',${JSON.stringify(call.b || {})})">${label}</button>`;
 const link = t => !t.claimed ? '<b style="color:#f2b84d">not joined</b>' : !t.online ? '<b style="color:#ff6b6b">🔴 offline</b>' : t.seen === S.expect ? '🟢 in sync' : '<b style="color:#f2b84d">🟠 syncing…</b>';
 
 function tiles() {
   return '<div class="grid">' + S.teams.map(t => `<div class="tile ${t.locked ? 'ok' : ''}"><h3>${t.name}</h3>
-    <div class="sub">${t.size} players · ${link(t)}</div>
+    <div class="sub">${S.mode === 'individual' ? '' : t.size + ' players · '}${link(t)}</div>
     ${S.phase === 'game' && S.stage === 'guess' ? `<div style="font-size:20px;margin-top:8px">${t.locked ? '🔒 Locked in' : '✍️ Thinking…'}</div>` : ''}
-    ${S.phase === 'lobby' ? `<div class="sub" style="margin-top:6px">${(t.members || []).join(', ')}</div>` : ''}
+    ${S.phase === 'lobby' && S.mode !== 'individual' ? `<div class="sub" style="margin-top:6px">${(t.members || []).join(', ')}</div>` : ''}
     ${t.claimed && S.phase !== 'final' ? act('Release laptop', { u: '/api/host/release', b: { team: t.id } }) : ''}</div>`).join('') + '</div>';
 }
 function render() {
   const m = $('#main');
   if (!key) { m.innerHTML = '<div class="card">Open the host link printed by the server (it ends with ?k=…)</div>'; return; }
   if (S.phase === 'setup') {
-    if (drawn !== 'setup') { drawn = 'setup'; $('#head').textContent = ''; m.innerHTML = `<div class="card"><h3>Players (one per line or comma-separated)</h3><textarea id="names" rows="10"></textarea>
+    if (drawn !== 'setup') { drawn = 'setup'; $('#head').textContent = ''; m.innerHTML = `<div class="card"><h3>Mode</h3><label><input type="radio" name="mode" value="teams" checked onchange="modeChanged()" style="width:auto"> Teams — you enter the names, one laptop per team</label><br>
+      <label><input type="radio" name="mode" value="individual" onchange="modeChanged()" style="width:auto"> Individual — every player logs in on their own PC with name + surname</label></div>
+      <div class="card" id="indiv" style="display:none"><h3>Rounds per game</h3><input id="ir" type="number" min="1" value="5" style="max-width:120px"><p class="sub">Players open the game link and log in themselves. You can change rounds and seconds in the lobby too.</p><button onclick="setupIndividual()">Open lobby</button></div>
+      <div class="card" id="teamsetup"><h3>Players (one per line or comma-separated)</h3><textarea id="names" rows="10"></textarea>
       <h3>Number of teams</h3><input id="n" type="number" min="1" value="5" style="max-width:120px"><p class="sub">Teams are shuffled and split as evenly as possible. Rounds per game default to the size of the biggest team — change it after creating teams.</p><button onclick="setup()">Create teams</button></div>`; }
     return;
   }
   if (S.phase === 'lobby') {
-    $('#head').textContent = `${S.teams.length} teams · ${S.R} rounds of Size + ${S.R} rounds of Price (${S.cfgSecs} s each)`;
+    $('#head').textContent = `${S.mode === 'individual' ? S.teams.length + ' players logged in' : S.teams.length + ' teams'} · ${S.R} rounds of Size + ${S.R} rounds of Price (${S.cfgSecs} s each)`;
     m.innerHTML = tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="startGame()">Start game</button></div>'; drawn = 'lobby'; return;
   }
   if (S.phase === 'final') { $('#head').textContent = 'Game over'; m.innerHTML = '<div class="card"><h2 style="text-align:center">Final standings</h2>' + board(S.teams) + '</div>'; drawn = 'final'; return; }

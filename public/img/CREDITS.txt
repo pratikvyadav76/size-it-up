@@ -1,25 +1,17 @@
 ﻿Images from Wikipedia/Wikimedia Commons (free licences; see each article page for author and licence).
 
 11.png	PlayStation 5	https://en.wikipedia.org/wiki/PlayStation_5
-16.png	Nespresso	https://en.wikipedia.org/wiki/Nespresso
 19.jpg	Tata Harrier EV	https://en.wikipedia.org/wiki/Tata_Harrier_EV
 20.jpg	BMW 3 Series	https://en.wikipedia.org/wiki/BMW_3_Series
 21.jpg	Honda Activa	https://en.wikipedia.org/wiki/Honda_Activa
 24.jpg	Chanel No. 5	https://en.wikipedia.org/wiki/Chanel_No._5
-27.jpg	Christian Louboutin	https://en.wikipedia.org/wiki/Christian_Louboutin
-29.png	Ray-Ban	https://en.wikipedia.org/wiki/Ray-Ban
-30.jpg	Levi Strauss & Co.	https://en.wikipedia.org/wiki/Levi_Strauss_%26_Co.
 31.jpg	Blazer	https://en.wikipedia.org/wiki/Blazer
-34.jpg	Tissot	https://en.wikipedia.org/wiki/Tissot
-37.jpg	Louis Vuitton	https://en.wikipedia.org/wiki/Louis_Vuitton
-38.jpeg	Taj Mahal	https://en.wikipedia.org/wiki/Taj_Mahal
 39.jpg	Yacht	https://en.wikipedia.org/wiki/Yacht
 40.jpg	Business class	https://en.wikipedia.org/wiki/Business_class
 41.jpg	Taj Mahal Palace Hotel	https://en.wikipedia.org/wiki/Taj_Mahal_Palace_Hotel
 42.jpg	Lehenga	https://en.wikipedia.org/wiki/Lehenga
 43.jpg	Gaming chair	https://en.wikipedia.org/wiki/Gaming_chair
 44.jpg	Apple Watch	https://en.wikipedia.org/wiki/Apple_Watch
-46.png	Amazon Kindle	https://en.wikipedia.org/wiki/Amazon_Kindle
 47.jpg	Cosmetics	https://en.wikipedia.org/wiki/Cosmetics
 48.jpg	Northrop B-2 Spirit	https://en.wikipedia.org/wiki/Northrop_B-2_Spirit
 49.jpg	Burj Khalifa	https://en.wikipedia.org/wiki/Burj_Khalifa

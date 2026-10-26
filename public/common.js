@@ -16,19 +16,29 @@ function tickTimer(total, active) {
   $('#tbar').style.width = (active ? (left / (total * 1000)) * 100 : 0) + '%';
 }
 setInterval(() => window.tick && tick(), 200);
-// items: [{e, m, cls, label, x}] drawn at pxPerM; huge sizes use transform so they clip instead of breaking.
-function scene(el, items, pxPerM) {
-  el.querySelectorAll('.obj,.lbl,.refline,.reftag').forEach(n => n.remove());
-  const r = items[0], rh = r.m * pxPerM;  // dashed line at the reference's top so the gap to the target is easy to judge
-  if (rh < 340) {
-    const l = document.createElement('div'); l.className = 'refline'; l.style.bottom = 40 + rh + 'px'; el.appendChild(l);
-    const t = document.createElement('div'); t.className = 'reftag'; t.style.bottom = 44 + rh + 'px'; t.textContent = fmtM(r.m); el.appendChild(t);
-  }
-  items.forEach(it => {
-    const o = document.createElement('div'); o.className = 'obj'; o.textContent = it.e;
-    o.style.left = it.x + '%'; o.style.transform = `scale(${(it.m * pxPerM) / 100})`;
-    const s = (it.m * pxPerM) / 100; o.style.textShadow = `0 0 0 ${it.color}, 0 0 ${(10 / s).toFixed(2)}px ${it.color}`; el.appendChild(o);
-    const l = document.createElement('div'); l.className = 'lbl'; l.style.left = it.x + '%'; l.style.color = it.color; l.textContent = it.label; el.appendChild(l);
+// items: [{s: silhouette id, m: metres, color, label}] drawn left to right at pxPerM; silhouettes are vectors scaled by transform so any size stays crisp.
+const dimsM = it => { const s = SIL[it.s]; return { hm: s.dim === 'h' ? it.m : it.m / s.a, wm: s.dim === 'w' ? it.m : it.m * s.a }; };
+const GAP = 46, SCENE_H = 380;
+function fitPpm(items, W, zoom = 1) {
+  const d = items.map(dimsM), hm = Math.max(...d.map(x => x.hm)), wm = d.reduce((a, x) => a + x.wm, 0);
+  return Math.min((SCENE_H - 100) / hm, (W - 40 - GAP * (items.length - 1)) / wm) * zoom;
+}
+function scene(el, items, ppm) {
+  el.querySelectorAll('.sil,.lbl,.refline,.reftag').forEach(n => n.remove());
+  let x = 20;
+  items.forEach((it, i) => {
+    const s = SIL[it.s], sc = (it.m * ppm) / 100, w0 = s.dim === 'h' ? 100 * s.a : 100, h0 = s.dim === 'h' ? 100 : 100 / s.a, wPx = w0 * sc;
+    const o = document.createElement('div'); o.className = 'sil'; o.innerHTML = SIL.html(it.s, h0);
+    Object.assign(o.style, { left: x + 'px', width: w0 + 'px', height: h0 + 'px', transform: `scale(${sc})`, color: it.color, filter: `drop-shadow(0 0 ${(9 / sc).toFixed(2)}px ${it.color})` });
+    el.appendChild(o);
+    const l = document.createElement('div'); l.className = 'lbl'; l.textContent = it.label; Object.assign(l.style, { left: x + Math.min(wPx, 400) / 2 + 'px', color: it.color, fontSize: '12px' }); el.appendChild(l);
+    if (i === 0) {  // dashed reference marker: top edge for tall things, right edge for long things
+      const line = document.createElement('div'), tag = document.createElement('div'); tag.className = 'reftag'; tag.textContent = fmtM(it.m);
+      if (s.dim === 'h') { line.className = 'refline'; line.style.bottom = 40 + it.m * ppm + 'px'; tag.style.bottom = 44 + it.m * ppm + 'px'; tag.style.right = '10px'; }
+      else { line.className = 'refline v'; line.style.left = x + wPx + 'px'; tag.style.top = '10px'; tag.style.left = x + wPx + 6 + 'px'; }
+      el.append(line, tag);
+    }
+    x += wPx + GAP;
   });
 }
 function board(teams, meId) {

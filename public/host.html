@@ -47,7 +47,7 @@ function render() {
   const k = S.round + S.stage + S.teams.map(t => t.locked).join();
   if (k === drawn) return; drawn = k;
   if (S.stage === 'guess') {
-    const name = S.game === 'size' ? `${S.q.t.e} ${S.q.t.name} vs ${S.q.ref.name}` : `${S.q.e} ${S.q.name}`;
+    const name = S.game === 'size' ? `${S.q.t.name} vs ${S.q.ref.name}` : `${S.q.e} ${S.q.name}`;
     m.innerHTML = `<div class="card sub"><b>${name}</b></div>` + tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="H(\'/api/host/done\')">Done — reveal now</button></div>';
   } else {
     const a = S.game === 'size' ? fmtM(S.q.answer) : both(S.q.answer, S.rate);

@@ -5,7 +5,7 @@
 <div class="bar" style="margin:10px 0"><div id="tbar" style="width:0"></div></div><div class="sub" id="tleft"></div>
 <div id="main"></div>
 </div>
-<script src="/common.js"></script>
+<script src="/sil.js"></script><script src="/common.js"></script>
 <script>
 let me = null; try { me = JSON.parse(localStorage.sizeit || 'null'); } catch {}
 let S = null, drawnKey = '', zoom = 1, slider = 500, priceInr = '', cur = 'inr';
@@ -44,25 +44,26 @@ function draw(key, fn) { if (key !== drawnKey) { drawnKey = key; fn(); } }
 
 // ---- size round ----
 const mOf = v => S.q.ref.m * Math.pow(200, (v / 1000) * 2 - 1);
-function pxPer() { return ((380 * 0.3) / S.q.ref.m) * zoom; }
+let fit = false;
 function sizeView() {
-  slider = 500; zoom = 1;
-  $('#main').innerHTML = `<div class="sub">Match the silhouette to its real-world scale.</div>
-  <div class="scene" id="sc"><div class="ground"></div><div class="zoom"><button class="ghost" onclick="zoom*=2;drawSize()">＋</button><button class="ghost" onclick="zoom/=2;drawSize()">－</button></div></div>
+  slider = 500; zoom = 1; fit = false;
+  $('#main').innerHTML = `<div class="sub">Drag the slider until the <b class="red">red</b> silhouette matches its real-world scale against the <b class="blue">blue</b> reference.</div>
+  <div class="scene" id="sc"><div class="ground"></div><div class="zoom"><button class="ghost" onclick="fit=false;zoom*=1.6;drawSize()">＋</button><button class="ghost" onclick="fit=false;zoom/=1.6;drawSize()">－</button><button class="ghost" onclick="zoom=1;fit=true;drawSize()">Fit</button></div></div>
   <div class="card"><div><span class="blue"><b>Reference:</b> ${S.q.ref.name} — ${fmtM(S.q.ref.m)}</span><br><span class="red"><b>Target:</b> ${S.q.t.name} — drag to set its size</span></div>
-  <input type="range" id="sl" min="0" max="1000" value="500" style="margin:12px 0;padding:0" oninput="slider=+this.value;drawSize();send()">
+  <input type="range" id="sl" min="0" max="1000" value="500" style="margin:12px 0;padding:0" oninput="slider=+this.value;fit=false;drawSize();send()">
   <div style="display:flex;justify-content:space-between;align-items:center"><b id="rd" style="font-size:22px"></b><button id="lock" onclick="lock()">Lock In</button></div></div>`;
   drawSize();
 }
 function drawSize() {
-  scene($('#sc'), [{ e: S.q.ref.e, m: S.q.ref.m, color: '#4a9eff', x: 12, label: S.q.ref.name.split(' (')[0] },
-    { e: S.q.t.e, m: mOf(slider), color: '#f24d4d', x: 45, label: 'Your guess' }], pxPer());
+  const W = $('#sc').clientWidth, ref = { s: S.q.ref.s, m: S.q.ref.m, color: '#4a9eff', label: 'Ref' }, mine = { s: S.q.t.s, m: mOf(slider), color: '#f24d4d', label: 'Your guess' };
+  const base = Math.min((SCENE_H * 0.32) / dimsM(ref).hm, (W * 0.26) / dimsM(ref).wm);
+  scene($('#sc'), [ref, mine], fit ? fitPpm([ref, mine], W) : base * zoom);
   $('#rd').textContent = 'Your guess: ' + fmtM(mOf(slider));
 }
 // ---- price round ----
 function priceView() {
   priceInr = ''; cur = S.q.usd ? 'usd' : 'inr';
-  $('#main').innerHTML = `<div class="card" style="text-align:center"><div style="font-size:90px">${S.q.e}</div><h2>${S.q.name}</h2><div class="sub">${S.q.note}</div>
+  $('#main').innerHTML = `<div class="card pcard"><div class="emo">${S.q.e}</div><h2 style="margin:6px 0 0">${S.q.name}</h2><div class="sub">${S.q.note} · approx.</div>
   <div style="display:flex;gap:8px;max-width:420px;margin:16px auto"><button class="ghost" id="cur" onclick="flip()"></button><input id="pi" type="number" min="0" step="any" placeholder="Your price" oninput="priceChanged()"></div>
   <div class="sub" id="conv"></div><div style="margin-top:14px"><button id="lock" onclick="lock()">Lock In</button></div></div>`;
   flip(true);
@@ -98,10 +99,9 @@ function reveal(team) {
   }
   $('#main').innerHTML = top + '<div class="card">' + board(S.teams, me.team) + '</div><div class="sub">Waiting for the host to start the next round…</div>';
   if (S.game === 'size') {
-    const ppm = Math.min((380 * 0.3) / q.ref.m, 290 / Math.max(ans, g && g.guess || 0));
-    scene($('#sc'), [{ e: q.ref.e, m: q.ref.m, color: '#4a9eff', x: 8, label: 'Reference' },
-      ...(g && g.guess ? [{ e: q.t.e, m: g.guess, color: '#f24d4d', x: 38, label: 'You' }] : []),
-      { e: q.t.e, m: ans, color: '#2fbf71', x: 68, label: 'Actual' }], ppm);
+    const items = [{ s: q.ref.s, m: q.ref.m, color: '#4a9eff', label: 'Ref' },
+      ...(g && g.guess ? [{ s: q.t.s, m: g.guess, color: '#f24d4d', label: 'You' }] : []), { s: q.t.s, m: ans, color: '#2fbf71', label: 'Actual' }];
+    scene($('#sc'), items, fitPpm(items, $('#sc').clientWidth));
   }
 }
 poll();

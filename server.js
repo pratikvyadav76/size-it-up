@@ -37,7 +37,7 @@ function view(teamId, host, token) {
       score: showScores ? t.score : undefined, last: showScores && S.phase === 'game' ? t.last : undefined })) };
   if (S.phase === 'game') {
     v.game = game(); const q = question();
-    v.q = reveal ? { ...q, answer: answer(q) } : game() === 'size' ? { ref: q.ref, t: { e: q.t.e, name: q.t.name } } : { e: q.e, name: q.name, note: q.note, usd: q.usd !== undefined };
+    v.q = reveal ? { ...q, answer: answer(q) } : game() === 'size' ? { ref: q.ref, t: { id: q.t.id, s: q.t.s, name: q.t.name } } : { e: q.e, name: q.name, note: q.note, usd: q.usd !== undefined };
     if (reveal && v.game === 'price') v.q.usd = q.usd !== undefined;
     const me = S.teams.find(t => t.id === teamId);
     if (me) { v.myGuess = me.guess; v.myLocked = me.locked; }

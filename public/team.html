@@ -8,11 +8,11 @@
 <script src="/sil.js"></script><script src="/common.js"></script>
 <script>
 let me = null; try { me = JSON.parse(localStorage.sizeit || 'null'); } catch {}
-let S = null, drawnKey = '', zoom = 1, slider = 500, priceInr = '', cur = 'inr';
+let S = null, drawnR = '', drawnKey = '', zoom = 1, slider = 500, priceInr = '', cur = 'inr';
 const save = () => { try { localStorage.sizeit = JSON.stringify(me); } catch {} };
 
 async function poll() {
-  try { S = await api('/api/state' + (me ? `?team=${me.team}&token=${me.token}` : '')); setTimer(S.ms); render(); } catch (e) { $('#head').textContent = 'Reconnecting…'; }
+  try { S = await api('/api/state' + (me ? `?team=${me.team}&token=${me.token}&r=${encodeURIComponent(drawnR)}` : '')); setTimer(S.ms); render(); drawnR = me && S.mine !== false ? S.expect : ''; } catch (e) { $('#head').textContent = 'Reconnecting…'; }
   setTimeout(poll, 700);
 }
 async function claim(id) {

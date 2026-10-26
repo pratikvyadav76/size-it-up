@@ -3,6 +3,12 @@
 <h1>Size It Up — Host</h1>
 <div class="sub" id="head"></div>
 <div class="bar" style="margin:10px 0"><div id="tbar" style="width:0"></div></div><div class="big" id="tleft" style="text-align:center"></div>
+<div id="cfg" class="card" style="display:none;text-align:center">
+  <label>Rounds per game <input id="cr" type="number" min="1" style="width:80px;display:inline-block"></label> &nbsp;
+  <label>Seconds per round <input id="cs" type="number" min="5" max="300" style="width:80px;display:inline-block"></label> &nbsp;
+  <button class="ghost" onclick="applyCfg()">Apply</button> <span class="sub" id="cmsg"></span>
+  <div class="sub" style="margin-top:6px">Rounds can be changed in the lobby only. Seconds apply from the next round (use ±10 s for the round in progress).</div>
+</div>
 <div id="main"></div>
 <div style="text-align:center;margin:20px"><button class="ghost" onclick="reset()">Reset everything</button></div>
 </div>
@@ -12,47 +18,60 @@ const key = new URLSearchParams(location.search).get('k') || '';
 let S = null, drawn = '';
 const H = (u, b) => api(u, { ...b, key }).catch(e => alert(e.message));
 async function poll() {
-  try { S = await api('/api/state?key=' + key); setTimer(S.ms); render(); } catch { $('#head').textContent = 'Reconnecting…'; }
+  try { S = await api('/api/state?key=' + key); setTimer(S.ms); render(); syncCfg(); } catch { $('#head').textContent = 'Reconnecting…'; }
   setTimeout(poll, 700);
 }
 function tick() { if (S) tickTimer(S.secs, S.phase === 'game' && S.stage === 'guess'); }
 function reset() { if (confirm('Wipe teams and scores?')) H('/api/host/reset'); }
+function applyCfg() {
+  H('/api/host/config', { rounds: $('#cr').value, secs: $('#cs').value }).then(() => { $('#cmsg').textContent = 'Saved ✓'; setTimeout(() => ($('#cmsg').textContent = ''), 1500); });
+}
+function syncCfg() {
+  $('#cfg').style.display = S.phase === 'setup' || S.phase === 'final' ? 'none' : 'block';
+  if (document.activeElement && document.activeElement.closest('#cfg')) return;  // don't clobber typing
+  $('#cr').value = S.R; $('#cr').max = S.maxR; $('#cr').disabled = S.phase !== 'lobby'; $('#cs').value = S.cfgSecs;
+}
 function startGame() {
   const miss = S.teams.filter(t => !t.claimed).map(t => t.name);
   if (miss.length && !confirm(miss.join(', ') + ' not joined yet and will score 0 until they join. Start anyway?')) return;
   H('/api/host/start');
 }
 function setup() { H('/api/host/setup', { names: $('#names').value, teams: $('#n').value }).then(() => (drawn = '')); }
+const act = (label, call, cls = 'ghost', ask = '') => `<button class="${cls}" onclick="${ask ? `if(!confirm('${ask}'))return;` : ''}H('${call.u}',${JSON.stringify(call.b || {})})">${label}</button>`;
+const link = t => !t.claimed ? '<b style="color:#f2b84d">not joined</b>' : !t.online ? '<b style="color:#ff6b6b">🔴 offline</b>' : t.seen === S.expect ? '🟢 in sync' : '<b style="color:#f2b84d">🟠 syncing…</b>';
 
 function tiles() {
   return '<div class="grid">' + S.teams.map(t => `<div class="tile ${t.locked ? 'ok' : ''}"><h3>${t.name}</h3>
-    <div class="sub">${t.size} players ${t.claimed ? '· laptop joined' : '· <b style="color:#f2b84d">not joined</b>'}</div>
+    <div class="sub">${t.size} players · ${link(t)}</div>
     ${S.phase === 'game' && S.stage === 'guess' ? `<div style="font-size:20px;margin-top:8px">${t.locked ? '🔒 Locked in' : '✍️ Thinking…'}</div>` : ''}
-    ${S.phase === 'lobby' ? `<div class="sub" style="margin-top:6px">${(t.members || []).join(', ')}</div>${t.claimed ? `<button class="ghost" onclick="H('/api/host/release',{team:'${t.id}'})">Release</button>` : ''}` : ''}</div>`).join('') + '</div>';
+    ${S.phase === 'lobby' ? `<div class="sub" style="margin-top:6px">${(t.members || []).join(', ')}</div>` : ''}
+    ${t.claimed && S.phase !== 'final' ? act('Release laptop', { u: '/api/host/release', b: { team: t.id } }) : ''}</div>`).join('') + '</div>';
 }
 function render() {
   const m = $('#main');
   if (!key) { m.innerHTML = '<div class="card">Open the host link printed by the server (it ends with ?k=…)</div>'; return; }
   if (S.phase === 'setup') {
     if (drawn !== 'setup') { drawn = 'setup'; $('#head').textContent = ''; m.innerHTML = `<div class="card"><h3>Players (one per line or comma-separated)</h3><textarea id="names" rows="10"></textarea>
-      <h3>Number of teams</h3><input id="n" type="number" min="1" value="5" style="max-width:120px"><p class="sub">Teams are shuffled and split as evenly as possible. Rounds per game = size of the biggest team.</p><button onclick="setup()">Create teams</button></div>`; }
+      <h3>Number of teams</h3><input id="n" type="number" min="1" value="5" style="max-width:120px"><p class="sub">Teams are shuffled and split as evenly as possible. Rounds per game default to the size of the biggest team — change it after creating teams.</p><button onclick="setup()">Create teams</button></div>`; }
     return;
   }
   if (S.phase === 'lobby') {
-    $('#head').textContent = `${S.teams.length} teams · ${S.R} rounds of Size + ${S.R} rounds of Price (each 30 s)`;
+    $('#head').textContent = `${S.teams.length} teams · ${S.R} rounds of Size + ${S.R} rounds of Price (${S.cfgSecs} s each)`;
     m.innerHTML = tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="startGame()">Start game</button></div>'; drawn = 'lobby'; return;
   }
   if (S.phase === 'final') { $('#head').textContent = 'Game over'; m.innerHTML = '<div class="card"><h2 style="text-align:center">Final standings</h2>' + board(S.teams) + '</div>'; drawn = 'final'; return; }
   $('#head').textContent = `${S.game === 'size' ? 'Guess the size' : 'Guess the price'} · Round ${S.round % S.R + 1} / ${S.R} · Game ${S.game === 'size' ? 1 : 2} of 2`;
-  const k = S.round + S.stage + S.teams.map(t => t.locked).join();
+  const k = S.round + S.stage + S.teams.map(t => t.locked + link(t)).join();
   if (k === drawn) return; drawn = k;
   if (S.stage === 'guess') {
     const name = S.game === 'size' ? `${S.q.t.name} vs ${S.q.ref.name}` : `${S.q.e} ${S.q.name}`;
-    m.innerHTML = `<div class="card sub"><b>${name}</b></div>` + tiles() + '<div style="text-align:center;margin-top:16px"><button onclick="H(\'/api/host/done\')">Done — reveal now</button></div>';
+    m.innerHTML = `<div class="card sub"><b>${name}</b></div>` + tiles() + `<div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      ${act('−10 s', { u: '/api/host/extend', b: { secs: -10 } })}${act('+10 s', { u: '/api/host/extend', b: { secs: 10 } })}${act('Done — reveal now', { u: '/api/host/done' }, '')}
+      ${act('Restart round', { u: '/api/host/restart' }, 'ghost', 'Restart this round with a fresh timer?')}${act('End game', { u: '/api/host/end' }, 'ghost', 'End the game now and show final standings?')}</div>`;
   } else {
     const a = S.game === 'size' ? fmtM(S.q.answer) : both(S.q.answer, S.rate);
     m.innerHTML = `<div class="card" style="text-align:center"><b>${S.game === 'size' ? S.q.t.name : S.q.name}</b><h2 class="green">${a}</h2></div><div class="card">${board(S.teams)}</div>
-      <div style="text-align:center"><button onclick="H('/api/host/next')">${S.round + 1 >= S.total ? 'Show final results' : 'Next round'}</button></div>`;
+      <div style="text-align:center;display:flex;gap:10px;justify-content:center">${act(S.round + 1 >= S.total ? 'Show final results' : 'Next round', { u: '/api/host/next' }, '')}${act('End game', { u: '/api/host/end' }, 'ghost', 'End the game now and show final standings?')}</div>`;
   }
 }
 poll();

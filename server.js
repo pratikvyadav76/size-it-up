@@ -91,7 +91,7 @@ function post(url, b) {
     case '/api/host/reset': S = fresh(); break;
     case '/api/join': {
       if (S.mode !== 'individual' || !['lobby', 'game'].includes(S.phase)) return [400, { error: 'Joining is closed right now' }];
-      const name = String(b.name || '').trim().replace(/s+/g, ' ');
+      const name = String(b.name || '').trim().replace(/\s+/g, ' ');
       if (!b.token) return [400, { error: 'bad device id' }];
       const mine = S.teams.find(t => t.token === b.token);
       if (mine) return [200, { ok: true, team: mine.id }];  // this device is already logged in
